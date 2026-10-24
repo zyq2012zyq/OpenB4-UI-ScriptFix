@@ -1,6 +1,7 @@
 package xyz.daikirai.gui;
 
 import xyz.daikirai.module.setting.SliderSetting;
+import xyz.daikirai.module.GuiModule;
 import xyz.daikirai.util.RenderUtils;
 import org.lwjgl.opengl.GL11;
 
@@ -34,6 +35,9 @@ public class SliderComponent extends Component {
     @Override
     public void mouseReleased(int x, int y, int m) {
         this.heldDown = false;
+        if (this.sliderSetting == GuiModule.scale) {
+            ClickGui.unfreezeScaleAfterDrag();
+        }
     }
 
     @Override
@@ -66,6 +70,9 @@ public class SliderComponent extends Component {
             return false;
         }
         this.heldDown = true;
+        if (this.sliderSetting == GuiModule.scale) {
+            ClickGui.freezeScaleForDrag();
+        }
         return true;
     }
 
@@ -116,5 +123,8 @@ public class SliderComponent extends Component {
     @Override
     public void onGuiClosed() {
         this.heldDown = false;
+        if (this.sliderSetting == GuiModule.scale) {
+            ClickGui.unfreezeScaleAfterDrag();
+        }
     }
 }

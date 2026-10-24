@@ -1,0 +1,4 @@
+.githooks/* text eol=lf
+OpenB4/gradlew text eol=lf
+*.yml text eol=lf
+*.py text eol=lf

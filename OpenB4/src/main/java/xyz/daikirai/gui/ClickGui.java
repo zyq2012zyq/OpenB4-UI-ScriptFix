@@ -17,6 +17,7 @@ import net.minecraft.client.gui.inventory.GuiInventory;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraftforge.fml.client.config.GuiButtonExt;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class ClickGui extends GuiScreen {
+    private static final int BASE_GUI_SCALE = 2;
     public static ClickGui instance;
     public static long openedAt;
     public static ArrayList<CategoryComponent> categories;
@@ -37,6 +39,8 @@ public class ClickGui extends GuiScreen {
     public ScaledResolution sr;
     public GuiButtonExt commandSend;
     public GuiTextField commandLineInput;
+    private float lastUiScale;
+    private static Float dragRenderScale;
 
     public ClickGui() {
         categories = new ArrayList<CategoryComponent>();
@@ -72,6 +76,11 @@ public class ClickGui extends GuiScreen {
     public void initGui() {
         super.initGui();
         this.sr = new ScaledResolution(this.mc);
+        RenderUtils.updateResolution();
+        this.lastUiScale = GuiModule.getUiScale();
+        if (!GuiModule.saveCategoryPositions.isToggled() || !this.categoriesOnScreen(getRenderScale())) {
+            this.layoutCategories(getRenderScale());
+        }
         (this.commandLineInput = new GuiTextField(1, this.mc.fontRendererObj, 22, this.height - 100, 150, 20)).setMaxStringLength(256);
         this.buttonList.add(this.commandSend = new GuiButtonExt(2, 22, this.height - 70, 150, 20, "Send"));
         this.commandSend.visible = CommandLineModule.open;
@@ -79,6 +88,14 @@ public class ClickGui extends GuiScreen {
 
     @Override
     public void drawScreen(int x, int y, float p) {
+        float uiScale = GuiModule.getUiScale();
+        float renderScale = getRenderScale();
+        if (dragRenderScale == null && this.lastUiScale != uiScale) {
+            this.lastUiScale = uiScale;
+            if (!GuiModule.saveCategoryPositions.isToggled() || !this.categoriesOnScreen(renderScale)) {
+                this.layoutCategories(renderScale);
+            }
+        }
         int bg;
         Module hud = ModuleManager.get("HUD");
         if (hud != null && hud.isEnabled()) {
@@ -97,13 +114,18 @@ public class ClickGui extends GuiScreen {
         if (!GuiModule.hideWatermark.isToggled()) {
             this.drawTitle((float) this.width / 2.0f, (float) this.height / 4.0f);
         }
+        int uiX = (int) (x / renderScale);
+        int uiY = (int) (y / renderScale);
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(renderScale, renderScale, 1.0f);
         for (CategoryComponent c : categories) {
-            c.render(this.fontRendererObj, x, y);
-            c.mousePosition(x, y);
+            c.render(this.fontRendererObj, uiX, uiY);
+            c.mousePosition(uiX, uiY);
             for (Component m : c.modules) {
-                m.updatePosition(x, y);
+                m.updatePosition(uiX, uiY);
             }
         }
+        GlStateManager.popMatrix();
         GL11.glColor3f(1.0f, 1.0f, 1.0f);
         if (!GuiModule.hidePlayerModel.isToggled() && this.mc.thePlayer != null) {
             GuiInventory.drawEntityOnScreen(this.width + 15 - this.backgroundAnimation.getValueInt(0, 40, 2), this.height - 10, 40,
@@ -287,25 +309,28 @@ public class ClickGui extends GuiScreen {
 
     @Override
     public void mouseClicked(int x, int y, int m) throws IOException {
+        float renderScale = getRenderScale();
+        int uiX = (int) (x / renderScale);
+        int uiY = (int) (y / renderScale);
         for (CategoryComponent c : categories) {
             if (m == 0) {
-                if (c.overCategoryIcon(x, y)) {
+                if (c.overCategoryIcon(uiX, uiY)) {
                     c.setOpened(!c.opened);
                     return;
                 }
-                if (c.overTitle(x, y)) {
+                if (c.overTitle(uiX, uiY)) {
                     c.overTitle(true);
-                    c.xOffset = (float) x - c.getX();
-                    c.dragY = (float) y - c.getY();
+                    c.xOffset = (float) uiX - c.getX();
+                    c.dragY = (float) uiY - c.getY();
                     return;
                 }
-            } else if ((m == 1 || m == 2) && c.overTitle(x, y)) {
+            } else if ((m == 1 || m == 2) && c.overTitle(uiX, uiY)) {
                 c.setOpened(!c.opened);
                 return;
             }
             if (!c.opened || c.modules.isEmpty()) continue;
             for (Component comp : c.modules) {
-                if (!comp.mouseClicked(x, y, m)) continue;
+                if (!comp.mouseClicked(uiX, uiY, m)) continue;
                 return;
             }
         }
@@ -317,6 +342,9 @@ public class ClickGui extends GuiScreen {
 
     @Override
     public void mouseReleased(int x, int y, int s) {
+        float renderScale = getRenderScale();
+        int uiX = (int) (x / renderScale);
+        int uiY = (int) (y / renderScale);
         if (s == 0) {
             for (CategoryComponent c : categories) {
                 c.overTitle(false);
@@ -324,7 +352,7 @@ public class ClickGui extends GuiScreen {
             for (CategoryComponent c : categories) {
                 if (!c.opened || c.modules.isEmpty()) continue;
                 for (Component comp : c.modules) {
-                    comp.mouseReleased(x, y, s);
+                    comp.mouseReleased(uiX, uiY, s);
                 }
             }
         }
@@ -367,13 +395,18 @@ public class ClickGui extends GuiScreen {
         int dWheel = Mouse.getEventDWheel();
         if (dWheel != 0) {
             dWheel = dWheel >> 31 | -dWheel >>> 31;
+            if (Keyboard.isKeyDown(29) || Keyboard.isKeyDown(157)) {
+                GuiModule.scale.setValue(GuiModule.getUiScale() + dWheel * 0.1f);
+                return;
+            }
             boolean computed = false;
             int mx = 0, my = 0;
             for (CategoryComponent c : categories) {
                 if (!c.opened || c.opening) continue;
                 if (!computed) {
-                    mx = Mouse.getEventX() * this.width / this.mc.displayWidth;
-                    my = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
+                    float renderScale = getRenderScale();
+                    mx = (int) (Mouse.getEventX() * this.width / this.mc.displayWidth / renderScale);
+                    my = (int) ((this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1) / renderScale);
                     computed = true;
                 }
                 c.onScroll(mx, my, dWheel);
@@ -383,7 +416,7 @@ public class ClickGui extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
-        GuiModule.restoreScale();
+        dragRenderScale = null;
         this.watermarkAnimation = null;
         this.delayedAnimation = null;
         this.unusedAnimation = null;
@@ -408,5 +441,40 @@ public class ClickGui extends GuiScreen {
     @Override
     public boolean doesGuiPauseGame() {
         return false;
+    }
+
+    public static float getRenderScale() {
+        if (dragRenderScale != null) {
+            return dragRenderScale;
+        }
+        return (float) (BASE_GUI_SCALE * GuiModule.getUiScale()) / Math.max(1, RenderUtils.scaleFactor);
+    }
+
+    public static void freezeScaleForDrag() {
+        dragRenderScale = getRenderScale();
+    }
+
+    public static void unfreezeScaleAfterDrag() {
+        dragRenderScale = null;
+    }
+
+    public void layoutCategories(float renderScale) {
+        int rows = Math.max(1, (int) ((this.height / renderScale - 21.0f) / 20.0f) + 1);
+        for (int i = 0; i < categories.size(); i++) {
+            categories.get(i).setX(5.0f + (i / rows) * 100.0f);
+            categories.get(i).setY(5.0f + (i % rows) * 20.0f);
+        }
+    }
+
+    private boolean categoriesOnScreen(float renderScale) {
+        float maxX = (float) this.width / renderScale;
+        float maxY = (float) this.height / renderScale;
+        for (CategoryComponent c : categories) {
+            if (c.getX() < 0.0f || c.getX() + c.getWidth() + 2.0f > maxX
+                    || c.getY() < 0.0f || c.getY() + c.titleHeight + 3.0f > maxY) {
+                return false;
+            }
+        }
+        return true;
     }
 }

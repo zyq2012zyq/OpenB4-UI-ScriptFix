@@ -31,4 +31,6 @@ deob/
 # OS
 Thumbs.db
 desktop.ini
+.cache/
+dist/
 .DS_Store

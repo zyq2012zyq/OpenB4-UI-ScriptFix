@@ -16,15 +16,6 @@ import net.minecraft.util.MathHelper;
 import org.lwjgl.input.Keyboard;
 
 public class GuiModule extends Module {
-    public enum Scale {
-        Small(1), Normal(2), Large(3);
-        public final int guiScale;
-
-        Scale(int guiScale) {
-            this.guiScale = guiScale;
-        }
-    }
-
     public static GuiColor watermarkColor = new GuiColor(57, 146, 229, 255);
     public static GuiColor closedOutlineLeft = new GuiColor(81, 99, 149, 255);
     public static GuiColor closedOutlineRight = new GuiColor(97, 67, 133, 255);
@@ -43,10 +34,7 @@ public class GuiModule extends Module {
     public static GuiColor whiteOutline = new GuiColor(255, 255, 255, 150);
     public static GuiColor outlineLeft = rainbowLeft;
     public static GuiColor outlineRight = rainbowRight;
-    public static Scale guiScale = Scale.Normal;
     public static float blurStrength = 1.7f;
-    public static int previousGuiScale;
-    public static boolean skipRestore;
     public static boolean movementActive;
 
     public static SliderSetting scale, backgroundBlur, scrollSpeed;
@@ -91,13 +79,8 @@ public class GuiModule extends Module {
         }
     }
 
-    public static void restoreScale() {
-        if (skipRestore) {
-            skipRestore = false;
-            return;
-        }
-        mc.gameSettings.guiScale = previousGuiScale;
-        RenderUtils.updateResolution();
+    public static float getUiScale() {
+        return scale == null ? 2.0f : Math.max(1.0f, Math.min(4.0f, (float) scale.getInput()));
     }
 
     @Override
@@ -114,7 +97,6 @@ public class GuiModule extends Module {
 
     @Override
     public void guiUpdate() {
-        guiScale = Scale.values()[(int) scale.getInput()];
         blurStrength = (float) (3.4 * (backgroundBlur.getInput() / 100.0));
         updateMovement();
     }
@@ -166,26 +148,19 @@ public class GuiModule extends Module {
     }
 
     public static void applyScale() {
-        previousGuiScale = mc.gameSettings.guiScale;
-        if (previousGuiScale != guiScale.guiScale) {
-            mc.gameSettings.guiScale = guiScale.guiScale;
-        }
         RenderUtils.updateResolution();
     }
 
     public static void resetPositions() {
-        float y = 5.0f;
         for (CategoryComponent c : ClickGui.categories) {
             for (Component comp : c.modules) {
                 ModuleComponent m = (ModuleComponent) comp;
                 if (!m.opened) continue;
                 m.toggleOpen();
             }
-            c.setX(5.0f);
-            c.setY(y);
             c.setOpened(false);
-            y += 20.0f;
         }
+        ClickGui.instance.layoutCategories(ClickGui.getRenderScale());
     }
 
     @Override

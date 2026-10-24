@@ -17,6 +17,12 @@ import javax.tools.ToolProvider;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,7 +39,7 @@ public final class ScriptManager {
     public static final String BASE_CLASS = ScriptDefaults.class.getName();
     public static final Class<?> baseClass = ScriptDefaults.class;
     public static String classpath = ownJar();
-    public static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    public static final JavaCompiler compiler = findCompiler();
 
     public static final List<String> IMPORTS = Arrays.asList("java.awt.Color", "java.util.List", "java.util.ArrayList",
             "java.util.Arrays", "java.util.Map", "java.util.HashMap", "java.util.HashSet",
@@ -59,6 +65,26 @@ public final class ScriptManager {
     private static boolean recompileFirst = true;
 
     private ScriptManager() {
+    }
+
+    private static JavaCompiler findCompiler() {
+        JavaCompiler systemCompiler = ToolProvider.getSystemJavaCompiler();
+        if (systemCompiler != null) {
+            return systemCompiler;
+        }
+        try (InputStream bundled = ScriptManager.class.getResourceAsStream("/b4-compiler/tools.jar")) {
+            if (bundled == null) {
+                return null;
+            }
+            Path jar = Files.createTempFile("ravenb4-compiler-", ".jar");
+            jar.toFile().deleteOnExit();
+            Files.copy(bundled, jar, StandardCopyOption.REPLACE_EXISTING);
+            URLClassLoader loader = new URLClassLoader(new URL[]{jar.toUri().toURL()}, ScriptManager.class.getClassLoader());
+            Class<?> javac = Class.forName("com.sun.tools.javac.api.JavacTool", true, loader);
+            return (JavaCompiler) javac.getMethod("create").invoke(null);
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
     }
 
     private static String ownJar() {

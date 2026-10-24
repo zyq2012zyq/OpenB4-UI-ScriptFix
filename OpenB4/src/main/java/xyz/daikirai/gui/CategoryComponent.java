@@ -113,7 +113,8 @@ public class CategoryComponent {
                 target += c.getHeight();
             }
             this.bigSettingsHeight = target;
-            target = Math.min(target, (float) RenderUtils.scaledHeight * this.maxHeightRatio);
+            float renderScale = ClickGui.getRenderScale();
+            target = Math.min(target, (float) RenderUtils.scaledHeight / renderScale * this.maxHeightRatio);
             if (this.openAnimation != null) {
                 float v;
                 if (this.opening) {
@@ -138,8 +139,9 @@ public class CategoryComponent {
                     GuiModule.categoryFill, GuiModule.outlineLeft, GuiModule.outlineRight);
             GL11.glPushMatrix();
             GL11.glEnable(3089);
-            GL11.glScissor((int) ((this.x - 1.0f) * (float) RenderUtils.scaleFactor), mc.displayHeight - bottom * RenderUtils.scaleFactor,
-                    (int) ((this.width + 2.0f) * (float) RenderUtils.scaleFactor), (int) (((float) bottom - top) * (float) RenderUtils.scaleFactor));
+            float pixelScale = RenderUtils.scaleFactor * renderScale;
+            GL11.glScissor(Math.round((this.x - 1.0f) * pixelScale), mc.displayHeight - Math.round(bottom * pixelScale),
+                    Math.round((this.width + 2.0f) * pixelScale), Math.round(((float) bottom - top) * pixelScale));
             for (Component c : this.modules) {
                 ModuleComponent m = (ModuleComponent) c;
                 if (lite && !m.mod.lite) continue;
@@ -148,7 +150,7 @@ public class CategoryComponent {
             }
             GL11.glDisable(3089);
             GL11.glPopMatrix();
-            float max = Math.min(this.bigSettingsHeight, (float) RenderUtils.scaledHeight * this.maxHeightRatio);
+            float max = Math.min(this.bigSettingsHeight, (float) RenderUtils.scaledHeight / renderScale * this.maxHeightRatio);
             this.targetScroll = Math.max(max - this.bigSettingsHeight, Math.min(0.0f, this.targetScroll));
             if (this.scrollAnimation != null && this.scroll != this.targetScroll) {
                 this.scroll = this.scroll > this.targetScroll
