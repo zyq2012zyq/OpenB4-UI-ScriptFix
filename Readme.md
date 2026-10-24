@@ -30,9 +30,9 @@ Minecraft **1.8.9 Forge** 客户端模组。本项目基于 [abusez/OpenB4](http
 
 产物在 `dist/RavenB4.jar`。`OpenB4` 的普通 Gradle 构建生成源码对应的 JAR；上面的发布脚本还会把 `vendor/RavenB4-scriptfix-input.jar` 中的第三方脚本修复类保留下来、加入 Java 8 编译器，并对脚本滑条接口做精确字节码修补。该脚本修复输入 JAR 只有二进制版本，所以发布脚本如实保留其 class，而没有声称其源码已完整恢复。Java 8 编译器来自 Eclipse Temurin；相关许可证和说明会一并打入产物。
 
-## 更新与自动发布
+## 更新与发布
 
-每次完成修改时，在 `CHANGELOG.md` 写明更新，再提交。此仓库配置了 Git `post-commit` 钩子，**提交后自动推送到 GitHub**；GitHub Actions 会对每次推送重建 JAR、创建 Release，并把最新更新说明作为 Release 介绍。新克隆需运行一次 `git config core.hooksPath .githooks` 启用本地钩子。也可以使用 `tools/publish-update.ps1` 更新日志并提交。
+每次完成用户要求的修改后，由维护者更新 `CHANGELOG.md`、完成构建检查，再**手动**推送 GitHub 和发布 Release，并在 Release 中写明本次更新。仓库不设置定时任务、提交后自动推送或推送后自动发布。
 
 ## 来源与权利
 
